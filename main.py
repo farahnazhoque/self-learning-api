@@ -56,3 +56,15 @@ def delete_post(id: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
     my_posts.pop(index)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@app.put("/posts/{id}")
+def update_post(id: int, post: Post): # ensuring the schema is verified so nothing else is allowed to change
+    index = find_index(id)
+    
+    if index == None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
+    
+    post_dict = post.dict()  # creating the newly sent data into a dictionary
+    post_dict["id"] = id # adding the id to the newly created dictionary
+    my_posts[index] = post_dict # removing the old item in the array and replacing it with the new dictionary
+    return {"data" : post_dict} # returning the newly updated dictionary
