@@ -1,6 +1,8 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 
+'''---- User sending data to us ----'''
 class PostBase(BaseModel): # an extension of the BaseModel class -> Schema
     """
     THis ensures that the user wants to create a post, the request will only go through if it has a title and content in the body
@@ -17,3 +19,19 @@ class PostCreate(PostBase):
     fields, we will use this class mainly for both.
     """
     pass
+
+'''---- Us sending data to user ----'''
+
+class Post(PostBase):
+    """
+    We are sending in a customized response
+    after creatinga post
+    """
+    id: int
+    created_at: datetime
+    
+    class Config: 
+        """
+        Converting a sqlalchemy to a dictionary
+        """
+        orm_mode = True

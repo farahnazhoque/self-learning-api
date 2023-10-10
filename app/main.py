@@ -34,10 +34,6 @@ def find_index(id):
     for i, p in enumerate(my_posts):
         if p["id"] == id:
             return i
-
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
     
 
 @app.get("/posts")
@@ -46,9 +42,9 @@ def get_posts(db: Session = Depends(get_db)):
     # posts = cursor.fetchall()
     posts = db.query(models.Posts).all()
     print(posts)
-    return {"data": posts}
+    return posts
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post("/posts", status_code=status.HTTP_201_CREATED, response_model = schemas.Post) # adding our response model
 def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)): # ensuring the schema is validated from the front end 
     # post_dict = post.dict()
     # post_dict["id"] = randrange(0, 100000)
@@ -60,7 +56,7 @@ def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)): # ensu
     db.add(new_post)
     db.commit()
     db.refresh(new_post) # returninng the newly created post
-    return {"data" : new_post}
+    return new_post # it is expecting a dictionary type
 
 @app.get("/posts/{id}")
 def get_posts_id(id: int, db: Session = Depends(get_db)): # response is added to tweak the response anyway we want it
@@ -68,7 +64,7 @@ def get_posts_id(id: int, db: Session = Depends(get_db)): # response is added to
     post = db.query(models.Posts).filter(models.Posts.id == id).first() # first instance and send this
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id : {id} not found")
-    return {"post details" : post}
+    return post
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
@@ -110,5 +106,5 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
     post_query.update(post.dict(), synchronize_session = False)
     db.commit()
     
-    return {"data" : post_query.first()}
+    post_query.first()
     

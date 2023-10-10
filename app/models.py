@@ -5,7 +5,9 @@ from sqlalchemy.sql.sqltypes import TIMESTAMP
 
 class Posts(Base):
     __tablename__ = 'posts'
-    
+    """
+    Responsible for defining the columns of our posts table within postgres
+    """
     id = Column(Integer, primary_key = True, nullable = False)
     title = Column(String, nullable = False)
     content = Column(String, nullable= False)
