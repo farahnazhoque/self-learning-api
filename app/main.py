@@ -1,10 +1,9 @@
 from typing import Optional
 from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
-from pydantic import BaseModel
 from random import randrange
 import psycopg2
-from . import models
+from . import models, schemas
 from sqlalchemy.orm import Session
 from .database import engine, get_db
 
@@ -12,11 +11,6 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-
-class Post(BaseModel): # an extension of the BaseModel class
-    title: str # setting the type as string there are many field types tho
-    content: str # will try to convert anything to string if it is able to
-    published: bool = True # setting a default
 
 while True:  
     try:
@@ -44,11 +38,6 @@ def find_index(id):
 @app.get("/")
 def root():
     return {"message": "Hello World"}
-
-@app.get("/sqlalchemy")
-def test_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Posts).all() # fetching all and the query method is functioning as an SQL code
-    return {"data" : posts}
     
 
 @app.get("/posts")
@@ -60,7 +49,7 @@ def get_posts(db: Session = Depends(get_db)):
     return {"data": posts}
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post, db: Session = Depends(get_db)): # ensuring the schema is validated from the front end 
+def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)): # ensuring the schema is validated from the front end 
     # post_dict = post.dict()
     # post_dict["id"] = randrange(0, 100000)
     # my_posts.append(post_dict)
@@ -82,22 +71,44 @@ def get_posts_id(id: int, db: Session = Depends(get_db)): # response is added to
     return {"post details" : post}
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    index = find_index(id)
+def delete_post(id: int, db: Session = Depends(get_db)):
+    # index = find_index(id)
     
-    if index == None:
+    # if index == None:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
+    # my_posts.pop(index)
+    # return Response(status_code=status.HTTP_204_NO_CONTENT)
+    
+    post = db.query(models.Posts).filter(models.Posts.id == id)
+    
+    if post.first() == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
-    my_posts.pop(index)
+
+    post.delete(synchronize_session = False) # most efficient and reliable
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @app.put("/posts/{id}")
-def update_post(id: int, post: Post): # ensuring the schema is verified so nothing else is allowed to change
-    index = find_index(id)
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)): # ensuring the schema is verified so nothing else is allowed to change
+    # index = find_index(id)
     
-    if index == None:
+    # if index == None:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
+    
+    # post_dict = post.dict()  # creating the newly sent data into a dictionary
+    # post_dict["id"] = id # adding the id to the newly created dictionary
+    # my_posts[index] = post_dict # removing the old item in the array and replacing it with the new dictionary
+    # return {"data" : post_dict} # returning the newly updated dictionary
+    
+    post_query = db.query(models.Posts).filter(models.Posts.id == id) # retrieving the posts using id and this is the query of doing so
+    
+    posts = post_query.first() # grabbing the first instance if a post does exist
+    
+    if posts == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id: {id} was not found")
     
-    post_dict = post.dict()  # creating the newly sent data into a dictionary
-    post_dict["id"] = id # adding the id to the newly created dictionary
-    my_posts[index] = post_dict # removing the old item in the array and replacing it with the new dictionary
-    return {"data" : post_dict} # returning the newly updated dictionary
+    post_query.update(post.dict(), synchronize_session = False)
+    db.commit()
+    
+    return {"data" : post_query.first()}
+    
