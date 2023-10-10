@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
-from random import randrange
+from passlib.context import CryptContext
 import psycopg2
 from . import models, schemas
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # what kind of hashing algorithm we will be using
 
 while True:  
     try:
@@ -36,7 +37,8 @@ def find_index(id):
             return i
     
 
-@app.get("/posts")
+@app.get("/posts", response_model = List[schemas.Post]) 
+# response_model = schemas.Post this will not work as we need list of posts
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * from posts """)
     # posts = cursor.fetchall()
@@ -58,7 +60,7 @@ def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)): # ensu
     db.refresh(new_post) # returninng the newly created post
     return new_post # it is expecting a dictionary type
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}, response_model = schemas.Post")
 def get_posts_id(id: int, db: Session = Depends(get_db)): # response is added to tweak the response anyway we want it
     # post = find_post(id) # we have to convert it to int as it is passed as str
     post = db.query(models.Posts).filter(models.Posts.id == id).first() # first instance and send this
@@ -84,7 +86,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.put("/posts/{id}")
+@app.put("/posts/{id}, response_model = schemas.Post")
 def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)): # ensuring the schema is verified so nothing else is allowed to change
     # index = find_index(id)
     
@@ -108,3 +110,15 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
     
     post_query.first()
     
+
+@app.post("/users", status_code=status.HTTP_201_CREATED, response_model=schemas.UserResponse) 
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)): # pydantic user
+    
+    # hash the password
+    hashed_password = pwd_context.hash(user.password) # creating a hashed password
+    user.password = hashed_password # updating the password to the hashed version
+    new_user = models.User(**user.dict()) 
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
